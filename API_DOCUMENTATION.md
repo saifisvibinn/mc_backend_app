@@ -40,10 +40,14 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
     ```json
     {
       "success": true,
-      "message": "Email verified successfully. You can now login.",
+      "message": "Email verified successfully",
       "user_id": "65c..."
     }
     ```
+
+### Resend Verification Code
+*   **Endpoint**: `POST /auth/resend-verification`
+*   **Input**: `{"email": "john@example.com"}`
 
 ### Login
 *   **Endpoint**: `POST /auth/login`
@@ -58,7 +62,7 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
     ```json
     {
       "token": "eyJhbG...",
-      "role": "moderator",
+      "role": "moderator", // or "pilgrim", "admin"
       "full_name": "John Doe",
       "user_id": "65c..."
     }
@@ -67,152 +71,123 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
 ### Get Current Profile
 *   **Endpoint**: `GET /auth/me`
 *   **Headers**: `Authorization: Bearer <token>`
-*   **Output (200)**:
-    ```json
-    {
-      "_id": "65c...",
-      "full_name": "John Doe",
-      "email": "john@example.com",
-      "role": "moderator",
-      "phone_number": "+966501234567",
-      "created_at": "2024-02-05T..."
-    }
-    ```
 
-### Register Pilgrim (Create Account)
-*   **Endpoint**: `POST /auth/register-pilgrim`
-*   **Description**: Creates a pilgrim account (can be done without password).
-*   **Input**:
-    ```json
-    {
-      "full_name": "Ali Ahmed",
-      "national_id": "1122334455",
-      "phone_number": "+966501234567",
-      "age": 45,
-      "gender": "male",
-      "medical_history": "None"
-    }
-    ```
-*   **Output (201)**:
-    ```json
-    {
-      "message": "Pilgrim registered successfully",
-      "pilgrim_id": "65d...",
-      "national_id": "1122334455"
-    }
-    ```
+### Update Profile
+*   **Endpoint**: `PUT /auth/update-profile`
+*   **Headers**: `Authorization: Bearer <token>`, `Content-Type: multipart/form-data`
+*   **Input**: `full_name`, `phone_number`, `profile_picture` (file)
 
 ---
 
-## 2. Groups (`/groups`)
+## 2. Pilgrim Features (`/pilgrim`)
+
+*All routes require Pilgrim role login*
+
+### Get Pilgrim Profile
+*   **Endpoint**: `GET /pilgrim/profile` (Returns self profile)
+
+### Get My Group
+*   **Endpoint**: `GET /pilgrim/my-group`
+*   **Output**: Group details, moderators list, fellow pilgrims count.
+
+### Update Location
+*   **Endpoint**: `PUT /pilgrim/location`
+*   **Input**:
+    ```json
+    {
+      "latitude": 21.4225,
+      "longitude": 39.8262,
+      "battery_percent": 85
+    }
+    ```
+
+### Trigger SOS
+*   **Endpoint**: `POST /pilgrim/sos`
+*   **Description**: Sends immediate emergency alert to all group moderators.
+
+---
+
+## 3. Groups (`/groups`)
+
+*Requires Moderator or Admin role*
 
 ### Create Group
 *   **Endpoint**: `POST /groups/create`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Input**:
-    ```json
-    {
-      "group_name": "Hajj Group 2024"
-    }
-    ```
-*   **Output (201)**:
-    ```json
-    {
-      "_id": "65e...",
-      "group_name": "Hajj Group 2024",
-      "moderator_ids": ["65c..."],
-      "created_by": "65c..."
-    }
-    ```
+*   **Input**: `{"group_name": "Hajj Group 2024"}`
 
 ### Get My Groups (Dashboard)
 *   **Endpoint**: `GET /groups/dashboard`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Output (200)**:
-    ```json
-    {
-      "success": true,
-      "data": [
-        {
-          "_id": "65e...",
-          "group_name": "Hajj Group 2024",
-          "pilgrims": [
-             {
-                "_id": "65d...",
-                "full_name": "Ali Ahmed",
-                "location": { "lat": 21.4, "lng": 39.8 },
-                "battery_percent": 85
-             }
-          ]
-        }
-      ]
-    }
-    ```
+*   **Output**: List of groups created by or moderating the user.
 
-### Add Pilgrim to Group
+### Add Pilgrim to Group (Manual)
 *   **Endpoint**: `POST /groups/:group_id/add-pilgrim`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Input**:
-    ```json
-    {
-      "user_id": "65d..."
-    }
-    ```
-*   **Output (200)**:
-    ```json
-    {
-      "message": "Pilgrim added to group",
-      "group": { ... }
-    }
-    ```
+*   **Input**: `{"user_id": "65d..."}` (Existing Pilgrim ID)
 
-### Get Single Group
-*   **Endpoint**: `GET /groups/:group_id`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Output (200)**: Similar to Dashboard item, but single object.
+### Remove Pilgrim
+*   **Endpoint**: `POST /groups/:group_id/remove-pilgrim`
+*   **Input**: `{"user_id": "65d..."}`
+
+### Invite Moderator/Pilgrim
+*   *(See Invitation section)*
+
+### Delete Group
+*   **Endpoint**: `DELETE /groups/:group_id`
+
+### Leave Group (as Moderator)
+*   **Endpoint**: `POST /groups/:group_id/leave`
 
 ---
 
-## 3. Hardware / Location (`/hardware`)
+## 4. Invitations (`/invitation`)
 
-### Hardware Ping
-*   **Endpoint**: `POST /hardware/ping`
-*   **Description**: Smart band sends location update.
+### Send Invitation
+*   **Endpoint**: `POST /invitation/groups/:group_id/invite`
 *   **Input**:
     ```json
     {
-      "serial_number": "MC-BAND-001",
-      "lat": 21.4225,
-      "lng": 39.8262,
-      "battery_percent": 75
+      "email": "invitee@example.com",
+      "role": "moderator" // or "pilgrim" (future)
     }
     ```
-*   **Output (200)**:
-    ```json
-    {
-      "message": "Location updated",
-      "server_timestamp": "2024-02-05T..."
-    }
-    ```
+
+### Get My Invitations
+*   **Endpoint**: `GET /invitation/invitations`
+
+### Accept/Decline Invitation
+*   **Endpoint**: `POST /invitation/invitations/:id/accept`
+*   **Endpoint**: `POST /invitation/invitations/:id/decline`
 
 ---
 
-## 4. Notifications (`/notifications`)
+## 5. Notifications (`/notifications`)
 
 ### Get Notifications
 *   **Endpoint**: `GET /notifications`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Output (200)**:
-    ```json
-    {
-      "success": true,
-      "data": [
-         {
-            "_id": "...",
-            "title": "Battery Low",
-            "message": "Pilgrim Ali has 10% battery",
-            "read": false
-         }
-      ]
-    }
-    ```
+*   **Query**: `?limit=20&page=1`
+
+### Mark as Read
+*   **Endpoint**: `PUT /notifications/:id/read`
+*   **Endpoint**: `PUT /notifications/read-all`
+
+---
+
+## 6. Hardware (`/hardware`)
+
+### Ping (Device)
+*   **Endpoint**: `POST /hardware/ping`
+*   **Input**: `serial_number`, `lat`, `lng`, `battery_percent`
+
+### Admin Management
+*   **Register Band**: `POST /hardware/register`
+*   **List Bands**: `GET /hardware/bands`
+
+---
+
+## 7. Admin (`/admin`)
+
+*Requires Admin role*
+
+*   **List Users**: `GET /admin/users`
+*   **Promote/Demote**: `POST /admin/users/promote-to-admin`, `demote-to-moderator`
+*   **Delete User**: `DELETE /admin/users/:user_id/force`
+*   **System Stats**: `GET /admin/stats`
