@@ -9,6 +9,17 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+// Verify SMTP connection on startup
+transporter.verify()
+    .then(() => {
+        console.log('✅ Gmail SMTP connection verified successfully');
+        console.log('   Sending from:', process.env.EMAIL_USER);
+    })
+    .catch((error) => {
+        console.error('❌ Gmail SMTP connection FAILED!');
+        console.error('   Error:', error.message);
+    });
+
 // Generate 6-digit verification code
 const generateVerificationCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -77,11 +88,20 @@ const sendVerificationEmail = async (to, code, fullName) => {
         `
     };
 
-    await transporter.sendMail(mailOptions);
+    try {
+        const result = await transporter.sendMail(mailOptions);
+        console.log('✅ Email sent successfully to:', to);
+        console.log('   Message ID:', result.messageId);
+        return result;
+    } catch (error) {
+        console.error('❌ Email sending failed to:', to);
+        console.error('   Error:', error.message);
+        throw error;
+    }
 };
 
 // Send group invitation email
-const sendGroupInvitationEmail = async (to, inviterName, groupName, frontendUrl) => {
+const sendGroupInvitationEmail = async (to, inviterName, groupName, frontendUrl, inviterProfilePic) => {
     const mailOptions = {
         from: `"Munawwara Care" <${process.env.EMAIL_USER}>`,
         to,
@@ -114,8 +134,16 @@ const sendGroupInvitationEmail = async (to, inviterName, groupName, frontendUrl)
                                         </p>
                                         <!-- Group Name Box -->
                                         <div style="text-align: center; margin: 30px 0;">
-                                            <div style="display: inline-block; background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 15px 30px;">
-                                                <span style="font-size: 20px; font-weight: 600; color: #1e40af;">${groupName}</span>
+                                            <div style="display: inline-block; text-align: center;">
+                                                <!-- Inviter PFP -->
+                                                ${inviterProfilePic ?
+                `<img src="http://192.168.1.13:5000/uploads/${inviterProfilePic}" alt="${inviterName}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #3b82f6; margin-bottom: 15px;">`
+                :
+                `<div style="width: 80px; height: 80px; border-radius: 50%; background-color: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: bold; margin: 0 auto 15px;">${inviterName.charAt(0)}</div>`
+            }
+                                                <div style="background-color: #eff6ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 15px 30px; margin-top: 10px;">
+                                                    <span style="font-size: 20px; font-weight: 600; color: #1e40af;">${groupName}</span>
+                                                </div>
                                             </div>
                                         </div>
                                         <p style="margin: 20px 0 30px; color: #4b5563; font-size: 16px; line-height: 1.6; text-align: center;">
@@ -149,11 +177,70 @@ const sendGroupInvitationEmail = async (to, inviterName, groupName, frontendUrl)
         `
     };
 
-    await transporter.sendMail(mailOptions);
+    try {
+        const result = await transporter.sendMail(mailOptions);
+        console.log('✅ Invitation email sent to:', to);
+        return result;
+    } catch (error) {
+        console.error('❌ Invitation email failed to:', to);
+        console.error('   Error:', error.message);
+        throw error;
+    }
+};
+
+const sendPilgrimInvitationEmail = async (to, inviterName, groupName, deepLink) => {
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: to,
+        subject: `Join "${groupName}" on Munawwara Care`,
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #2563eb; margin: 0;">Munawwara Care</h1>
+                    <p style="color: #666; margin-top: 5px;">Hajj & Umrah Companion</p>
+                </div>
+                
+                <div style="background-color: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h2 style="color: #1e40af; margin-top: 0;">You've been invited!</h2>
+                    
+                    <p style="font-size: 16px; line-height: 1.5;">Hello,</p>
+                    <p style="font-size: 16px; line-height: 1.5;">
+                        <strong>${inviterName}</strong> has invited you to join the group <strong>"${groupName}"</strong> as a pilgrim.
+                    </p>
+                    
+                    <div style="text-align: center; margin: 35px 0;">
+                        <a href="${deepLink}" style="background-color: #2563eb; color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
+                            Join Group Now
+                        </a>
+                        <p style="font-size: 12px; color: #888; margin-top: 15px;">
+                            (Tap this button on your mobile phone to open the app)
+                        </p>
+                    </div>
+                
+                    <p style="font-size: 14px; color: #666; border-top: 1px solid #eee; padding-top: 20px;">
+                        If the button above doesn't work, ensure you have the <strong>Munawwara Care</strong> app installed on your phone.
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
+                    <p>&copy; ${new Date().getFullYear()} Munawwara Care. All rights reserved.</p>
+                </div>
+            </div>
+        `
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Pilgrim invitation email sent to ${to}`);
+    } catch (error) {
+        console.error('Error sending pilgrim invitation email:', error);
+        throw error;
+    }
 };
 
 module.exports = {
     generateVerificationCode,
     sendVerificationEmail,
-    sendGroupInvitationEmail
+    sendGroupInvitationEmail,
+    sendPilgrimInvitationEmail
 };

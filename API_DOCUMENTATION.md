@@ -6,9 +6,9 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
 
 ## 1. Authentication (`/auth`)
 
-### Register User (Moderator)
+### Register User (General)
 *   **Endpoint**: `POST /auth/register`
-*   **Description**: Registers a new moderator. Sends a verification email.
+*   **Description**: Registers a new user. Default role is `pilgrim`.
 *   **Input**:
     ```json
     {
@@ -18,201 +18,134 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
       "phone_number": "+966501234567"
     }
     ```
-*   **Output (200)**:
+
+### Register Invited Pilgrim
+*   **Endpoint**: `POST /auth/register-invited-pilgrim`
+*   **Input**:
     ```json
     {
-      "success": true,
-      "message": "Verification code sent to email",
-      "email": "john@example.com"
+      "token": "invitation_token_123",
+      "full_name": "Jane User",
+      "password": "password123",
+      "phone_number": "+966555555555"
     }
     ```
 
 ### Verify Email
 *   **Endpoint**: `POST /auth/verify-email`
-*   **Input**:
-    ```json
-    {
-      "email": "john@example.com",
-      "code": "123456"
-    }
-    ```
-*   **Output (201)**:
-    ```json
-    {
-      "success": true,
-      "message": "Email verified successfully. You can now login.",
-      "user_id": "65c..."
-    }
-    ```
+*   **Input**: `{"email": "...", "code": "123456"}`
 
 ### Login
 *   **Endpoint**: `POST /auth/login`
-*   **Input**:
-    ```json
-    {
-      "email": "john@example.com",
-      "password": "securepassword123"
-    }
-    ```
-*   **Output (200)**:
-    ```json
-    {
-      "token": "eyJhbG...",
-      "role": "moderator",
-      "full_name": "John Doe",
-      "user_id": "65c..."
-    }
-    ```
+*   **Input**: `{"email": "...", "password": "..."}`
+*   **Output**: Returns `token`, `role`, `user_id`, `full_name`.
 
-### Get Current Profile
-*   **Endpoint**: `GET /auth/me`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Output (200)**:
-    ```json
-    {
-      "_id": "65c...",
-      "full_name": "John Doe",
-      "email": "john@example.com",
-      "role": "moderator",
-      "phone_number": "+966501234567",
-      "created_at": "2024-02-05T..."
-    }
-    ```
-
-### Register Pilgrim (Create Account)
-*   **Endpoint**: `POST /auth/register-pilgrim`
-*   **Description**: Creates a pilgrim account (can be done without password).
-*   **Input**:
-    ```json
-    {
-      "full_name": "Ali Ahmed",
-      "national_id": "1122334455",
-      "phone_number": "+966501234567",
-      "age": 45,
-      "gender": "male",
-      "medical_history": "None"
-    }
-    ```
-*   **Output (201)**:
-    ```json
-    {
-      "message": "Pilgrim registered successfully",
-      "pilgrim_id": "65d...",
-      "national_id": "1122334455"
-    }
-    ```
+### Profile Management
+*   **Get Profile**: `GET /auth/me`
+*   **Update Profile**: `PUT /auth/update-profile` (Multipart form-data: `profile_picture`, `full_name`, `phone_number`)
 
 ---
 
-## 2. Groups (`/groups`)
+## 2. Pilgrim Features (`/pilgrim`)
+
+*All routes require Pilgrim role login*
+
+### Get My Group
+*   **Endpoint**: `GET /pilgrim/my-group`
+*   **Output**: Returns assigned group, moderators list (with location), and creator info.
+
+### Update Location
+*   **Endpoint**: `PUT /pilgrim/location`
+*   **Input**:
+    ```json
+    {
+      "latitude": 21.4225,
+      "longitude": 39.8262,
+      "battery_percent": 85
+    }
+    ```
+
+### Trigger SOS
+*   **Endpoint**: `POST /pilgrim/sos`
+*   **Description**: Sends immediate emergency alert to all group moderators.
+
+---
+
+## 3. Messages (`/messages`)
+
+*Used for Group Broadcasts (Moderator -> Pilgrims)*
+
+### Send Message
+*   **Endpoint**: `POST /messages`
+*   **Headers**: `Authorization: Bearer <token>`, `Content-Type: multipart/form-data` (if file attached)
+*   **Input**:
+    *   `group_id`: ID of the group.
+    *   `content`: Text content.
+    *   `type`: 'text', 'voice', or 'image'.
+    *   `file`: (Optional) Audio/Image file.
+
+### Get Group Messages
+*   **Endpoint**: `GET /messages/group/:group_id`
+*   **Query**: `?page=1&limit=50`
+*   **Output**: List of messages sorted by date.
+
+---
+
+## 4. Admin & Moderator Management (`/admin`)
+
+### Request Moderator Status
+*   **Endpoint**: `POST /admin/request-moderator`
+*   **Description**: Authenticated user requests upgrade to Moderator role.
+
+### Get Pending Requests (Admin Only)
+*   **Endpoint**: `GET /admin/requests`
+
+### Approve Request (Admin Only)
+*   **Endpoint**: `PUT /admin/requests/:request_id/approve`
+*   **Description**: Upgrades user role to 'moderator' and notifies them.
+
+### Reject Request (Admin Only)
+*   **Endpoint**: `PUT /admin/requests/:request_id/reject`
+
+### User Management (Admin Only)
+*   **List Users**: `GET /admin/users`
+*   **System Stats**: `GET /admin/stats`
+
+---
+
+## 5. Groups (`/groups`)
+
+*Requires Moderator or Admin role*
 
 ### Create Group
 *   **Endpoint**: `POST /groups/create`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Input**:
-    ```json
-    {
-      "group_name": "Hajj Group 2024"
-    }
-    ```
-*   **Output (201)**:
-    ```json
-    {
-      "_id": "65e...",
-      "group_name": "Hajj Group 2024",
-      "moderator_ids": ["65c..."],
-      "created_by": "65c..."
-    }
-    ```
+*   **Input**: `{"group_name": "Hajj Group 2024"}`
 
-### Get My Groups (Dashboard)
+### Group Dashboard
 *   **Endpoint**: `GET /groups/dashboard`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Output (200)**:
-    ```json
-    {
-      "success": true,
-      "data": [
-        {
-          "_id": "65e...",
-          "group_name": "Hajj Group 2024",
-          "pilgrims": [
-             {
-                "_id": "65d...",
-                "full_name": "Ali Ahmed",
-                "location": { "lat": 21.4, "lng": 39.8 },
-                "battery_percent": 85
-             }
-          ]
-        }
-      ]
-    }
-    ```
+*   **Output**: Groups managed by the user.
 
-### Add Pilgrim to Group
-*   **Endpoint**: `POST /groups/:group_id/add-pilgrim`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Input**:
-    ```json
-    {
-      "user_id": "65d..."
-    }
-    ```
-*   **Output (200)**:
-    ```json
-    {
-      "message": "Pilgrim added to group",
-      "group": { ... }
-    }
-    ```
-
-### Get Single Group
-*   **Endpoint**: `GET /groups/:group_id`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Output (200)**: Similar to Dashboard item, but single object.
+### Manage Members
+*   **Add Pilgrim**: `POST /groups/:group_id/add-pilgrim`
+*   **Remove Pilgrim**: `POST /groups/:group_id/remove-pilgrim`
+*   **Leave Group**: `POST /groups/:group_id/leave`
+*   **Delete Group**: `DELETE /groups/:group_id`
 
 ---
 
-## 3. Hardware / Location (`/hardware`)
+## 6. Invitations (`/invitation`)
 
-### Hardware Ping
-*   **Endpoint**: `POST /hardware/ping`
-*   **Description**: Smart band sends location update.
-*   **Input**:
-    ```json
-    {
-      "serial_number": "MC-BAND-001",
-      "lat": 21.4225,
-      "lng": 39.8262,
-      "battery_percent": 75
-    }
-    ```
-*   **Output (200)**:
-    ```json
-    {
-      "message": "Location updated",
-      "server_timestamp": "2024-02-05T..."
-    }
-    ```
+### Send Invitation
+*   **Endpoint**: `POST /invitation/groups/:group_id/invite`
+*   **Input**: `{"email": "...", "role": "pilgrim"}`
+
+### Track Invitations
+*   **Endpoint**: `GET /invitation/invitations`
 
 ---
 
-## 4. Notifications (`/notifications`)
+## 7. Notifications (`/notifications`)
 
-### Get Notifications
-*   **Endpoint**: `GET /notifications`
-*   **Headers**: `Authorization: Bearer <token>`
-*   **Output (200)**:
-    ```json
-    {
-      "success": true,
-      "data": [
-         {
-            "_id": "...",
-            "title": "Battery Low",
-            "message": "Pilgrim Ali has 10% battery",
-            "read": false
-         }
-      ]
-    }
-    ```
+*   **Get All**: `GET /notifications`
+*   **Mark Read**: `PUT /notifications/:id/read`
+*   **Mark All Read**: `PUT /notifications/read-all`
