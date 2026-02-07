@@ -8,14 +8,20 @@ const { generateVerificationCode, sendVerificationEmail } = require('../config/e
 
 // Public Signup: Defaults to 'moderator' - Now requires email verification
 exports.register_user = async (req, res) => {
+    console.log(`[REGISTER START] Request received for: ${req.body.email}`);
     try {
         const { full_name, email, password, phone_number } = req.body;
+        console.log(`[REGISTER] Checking existence for: ${email}`);
 
         // Check if email is already registered as a verified user
         const existing_user = await User.findOne({ email });
         const existing_pilgrim_email = await Pilgrim.findOne({ email });
         if (existing_user || existing_pilgrim_email) {
-            return res.status(400).json({ message: "Email is already registered" });
+            return res.status(400).json({
+                success: false,
+                message: "Validation Error",
+                errors: { email: "Email is already registered" }
+            });
         }
 
         // Check if email is already pending verification
@@ -29,7 +35,11 @@ exports.register_user = async (req, res) => {
         const existing_phone = await User.findOne({ phone_number });
         const existing_pilgrim_phone = await Pilgrim.findOne({ phone_number });
         if (existing_phone || existing_pilgrim_phone) {
-            return res.status(400).json({ message: "Phone number is already registered" });
+            return res.status(400).json({
+                success: false,
+                message: "Validation Error",
+                errors: { phone_number: "Phone number is already registered" }
+            });
         }
 
         const hashed_password = await bcrypt.hash(password, 10);
@@ -44,8 +54,10 @@ exports.register_user = async (req, res) => {
             verification_code
         });
 
-        // Send verification email
-        await sendVerificationEmail(email, verification_code, full_name);
+        // Send verification email asynchronously (fire and forget)
+        sendVerificationEmail(email, verification_code, full_name)
+            .then(() => console.log(`Verification email sent to ${email}`))
+            .catch(err => console.error(`Failed to send verification email to ${email}:`, err));
 
         res.status(200).json({
             success: true,
@@ -80,7 +92,7 @@ exports.verify_email = async (req, res) => {
             full_name: pending_user.full_name,
             email: pending_user.email,
             password: pending_user.password,
-            role: 'pilgrim',
+            role: 'moderator', // Default role for public self-registration
             phone_number: pending_user.phone_number
         });
 
@@ -119,8 +131,10 @@ exports.resend_verification = async (req, res) => {
         pending_user.created_at = new Date();
         await pending_user.save();
 
-        // Send new verification email
-        await sendVerificationEmail(email, verification_code, pending_user.full_name);
+        // Send new verification email asynchronously
+        sendVerificationEmail(email, verification_code, pending_user.full_name)
+            .then(() => console.log(`Verification email resent to ${email}`))
+            .catch(err => console.error(`Failed to resend verification email to ${email}:`, err));
 
         res.status(200).json({
             success: true,

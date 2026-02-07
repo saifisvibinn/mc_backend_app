@@ -24,9 +24,12 @@ exports.send_message = async (req, res) => {
             media_url = file.filename; // or full path depending on storage config
         }
 
+        const sender_model = req.user.role === 'pilgrim' ? 'Pilgrim' : 'User';
+
         const message = await Message.create({
             group_id,
             sender_id: req.user.id,
+            sender_model,
             type: type || 'text',
             content,
             media_url

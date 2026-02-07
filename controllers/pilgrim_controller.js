@@ -5,8 +5,17 @@ const Notification = require('../models/notification_model');
 // Get pilgrim profile
 exports.get_profile = async (req, res) => {
     try {
-        // Find user by ID (since self-registered pilgrims are in User collection)
-        const pilgrim = await User.findById(req.user.id).select('-password');
+        // Find user by ID (could be User or Pilgrim)
+        let pilgrim;
+
+        if (req.user.role === 'pilgrim') {
+            // Lazy load to avoid circular dependency if any, though not expected here
+            const Pilgrim = require('../models/pilgrim_model');
+            pilgrim = await Pilgrim.findById(req.user.id).select('-password');
+        } else {
+            pilgrim = await User.findById(req.user.id).select('-password');
+        }
+
         if (!pilgrim) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -81,7 +90,14 @@ exports.update_location = async (req, res) => {
 // Trigger SOS emergency alert
 exports.trigger_sos = async (req, res) => {
     try {
-        const pilgrim = await User.findById(req.user.id);
+        let pilgrim;
+        if (req.user.role === 'pilgrim') {
+            const Pilgrim = require('../models/pilgrim_model');
+            pilgrim = await Pilgrim.findById(req.user.id);
+        } else {
+            pilgrim = await User.findById(req.user.id);
+        }
+
         if (!pilgrim) {
             return res.status(404).json({ message: 'User not found' });
         }

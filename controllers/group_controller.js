@@ -25,7 +25,8 @@ exports.get_single_group = async (req, res) => {
         }
 
         // Enrich pilgrims with their details (Location now directly on Pilgrim)
-        const pilgrims_with_details = await Promise.all(group.pilgrim_ids.map(async (pilgrim_id) => {
+        const pilgrim_ids = group.pilgrim_ids || [];
+        const pilgrims_with_details = await Promise.all(pilgrim_ids.map(async (pilgrim_id) => {
             const pilgrim = await Pilgrim.findById(pilgrim_id)
                 .select('full_name national_id email phone_number medical_history age gender current_latitude current_longitude last_location_update battery_percent')
                 .lean();

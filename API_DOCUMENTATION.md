@@ -4,6 +4,26 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
 
 **Base URL**: `http://<server-ip>:5000/api`
 
+## Error Handling & Validation
+
+All API endpoints return errors in the following standard format when validation fails (HTTP 400):
+
+```json
+{
+  "success": false,
+  "message": "Validation Error",
+  "errors": {
+    "email": "Email is already registered",
+    "password": "Password must be at least 6 characters long",
+    "phone_number": "Phone number is required"
+  }
+}
+```
+
+The `errors` object key represents the field name, and the value is the human-readable error message.
+
+---
+
 ## 1. Authentication (`/auth`)
 
 ### Register User (General)
@@ -91,7 +111,7 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
 
 ---
 
-## 4. Admin & Moderator Management (`/admin`)
+## 4. Moderator Requests (`/admin`)
 
 ### Request Moderator Status
 *   **Endpoint**: `POST /admin/request-moderator`
@@ -103,7 +123,7 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
 
 ## 5. Groups (`/groups`)
 
-*Requires Moderator or Admin role*
+*Requires Moderator role*
 
 ### Create Group
 *   **Endpoint**: `POST /groups/create`
@@ -138,7 +158,19 @@ This document outlines the available API endpoints in the `mc_backend_app`, incl
 
 ---
 
-## 7. Notifications (`/notifications`)
+### Communication Sessions (Calls/Walkie-Talkie)
+*   **Start Session**: `POST /communication/start-session`
+    *   Input: `{"group_id": "...", "type": "voice_call"}` (Types: `voice_call`, `video_call`, `walkie_talkie`)
+    *   Output: `session_id`
+*   **Join Session**: `POST /communication/join-session`
+    *   Input: `{"session_id": "..."}`
+*   **End Session**: `POST /communication/end-session`
+    *   Input: `{"session_id": "..."}`
+*   **Get Active Sessions**: `GET /communication/sessions/:group_id`
+
+---
+
+## 8. Notifications (`/notifications`)
 
 *   **Get All**: `GET /notifications`
 *   **Mark Read**: `PUT /notifications/:id/read`
