@@ -17,15 +17,6 @@ const authLimiter = rateLimit({
     skipSuccessfulRequests: true, // Don't count successful requests
 });
 
-// Public hardware endpoint - 1000 requests per minute (for wristbands)
-const hardwareLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 1000,
-    message: 'Hardware endpoint rate limit exceeded',
-    standardHeaders: true,
-    legacyHeaders: false,
-});
-
 // Search limiter - 30 requests per minute
 const searchLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -33,4 +24,4 @@ const searchLimiter = rateLimit({
     message: 'Too many search requests, please try again later',
 });
 
-module.exports = { generalLimiter, authLimiter, hardwareLimiter, searchLimiter };
+module.exports = { generalLimiter, authLimiter, searchLimiter };

@@ -58,30 +58,7 @@ exports.add_pilgrim_schema = Joi.object({
     medical_history: Joi.string().optional().allow('').max(500)
 }).or('user_id', 'national_id');
 
-// Hardware validations
-exports.register_band_schema = Joi.object({
-    serial_number: Joi.string().required(),
-    imei: Joi.string().optional(),
-    battery_percent: Joi.number().optional().min(0).max(100)
-});
 
-exports.assign_band_schema = Joi.object({
-    serial_number: Joi.string().required(),
-    user_id: Joi.string().required(),
-    group_id: Joi.string().required()
-});
-
-exports.unassign_band_schema = Joi.object({
-    user_id: Joi.string().required(),
-    group_id: Joi.string().required()
-});
-
-exports.report_location_schema = Joi.object({
-    serial_number: Joi.string().required(),
-    lat: Joi.number().required(),
-    lng: Joi.number().required(),
-    battery_percent: Joi.number().optional().min(0).max(100)
-});
 
 exports.send_alert_schema = Joi.object({
     group_id: Joi.string().required(),

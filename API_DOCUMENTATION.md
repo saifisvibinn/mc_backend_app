@@ -1,6 +1,6 @@
 # Munawwara Care API Documentation
 
-This document outlines the available API endpoints in the `mc_backend_app`, including expected inputs and outputs.
+This document outlines the available API endpoints in the `mc_backend_app` (main backend for mobile app). For admin endpoints, see the separate `mc_admin_backend` documentation.
 
 **Base URL**: `http://<server-ip>:5000/api`
 
@@ -109,19 +109,10 @@ The `errors` object key represents the field name, and the value is the human-re
 *   **Query**: `?page=1&limit=50`
 *   **Output**: List of messages sorted by date.
 
----
-
-## 4. Moderator Requests (`/admin`)
-
-### Request Moderator Status
-*   **Endpoint**: `POST /admin/request-moderator`
-*   **Description**: Authenticated user requests upgrade to Moderator role.
 
 ---
 
----
-
-## 5. Groups (`/groups`)
+## 4. Groups (`/groups`)
 
 *Requires Moderator role*
 
@@ -147,7 +138,7 @@ The `errors` object key represents the field name, and the value is the human-re
 
 ---
 
-## 6. Invitations (`/invitation`)
+## 5. Invitations (`/invitation`)
 
 ### Send Invitation
 *   **Endpoint**: `POST /invitation/groups/:group_id/invite`
@@ -158,7 +149,7 @@ The `errors` object key represents the field name, and the value is the human-re
 
 ---
 
-### Communication Sessions (Calls/Walkie-Talkie)
+## 6. Communication Sessions (Calls/Walkie-Talkie)
 *   **Start Session**: `POST /communication/start-session`
     *   Input: `{"group_id": "...", "type": "voice_call"}` (Types: `voice_call`, `video_call`, `walkie_talkie`)
     *   Output: `session_id`
@@ -170,7 +161,7 @@ The `errors` object key represents the field name, and the value is the human-re
 
 ---
 
-## 8. Notifications (`/notifications`)
+## 7. Notifications (`/notifications`)
 
 *   **Get All**: `GET /notifications`
 *   **Mark Read**: `PUT /notifications/:id/read`

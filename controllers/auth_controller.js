@@ -1,7 +1,6 @@
 const User = require('../models/user_model');
 const PendingUser = require('../models/pending_user_model');
 const Pilgrim = require('../models/pilgrim_model');
-const HardwareBand = require('../models/hardware_band_model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { generateVerificationCode, sendVerificationEmail } = require('../config/email_service');
@@ -427,19 +426,6 @@ exports.get_pilgrim_by_id = async (req, res) => {
         }
 
         const pilgrimObj = pilgrim.toObject ? pilgrim.toObject() : pilgrim;
-
-        const band = await HardwareBand.findOne({ current_user_id: pilgrim_id }).lean();
-
-        pilgrimObj.band_info = band ? {
-            serial_number: band.serial_number,
-            last_location: band.last_latitude && band.last_longitude ? {
-                lat: band.last_latitude,
-                lng: band.last_longitude
-            } : null,
-            last_updated: band.last_updated,
-            imei: band.imei,
-            battery_percent: band.battery_percent
-        } : null;
 
         res.json(pilgrimObj);
     } catch (error) {
