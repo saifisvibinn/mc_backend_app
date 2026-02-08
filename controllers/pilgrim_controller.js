@@ -30,9 +30,9 @@ exports.get_profile = async (req, res) => {
 exports.get_my_group = async (req, res) => {
     try {
         // Find group that contains this pilgrim (User ID)
-        const group = await Group.findOne({ pilgrims: req.user.id })
+        const group = await Group.findOne({ pilgrim_ids: req.user.id })
             .populate('created_by', 'full_name email phone_number current_latitude current_longitude')
-            .populate('moderators', 'full_name email phone_number current_latitude current_longitude');
+            .populate('moderator_ids', 'full_name email phone_number current_latitude current_longitude');
 
         if (!group) {
             return res.status(404).json({ message: 'You are not assigned to any group' });
@@ -42,8 +42,8 @@ exports.get_my_group = async (req, res) => {
             group_name: group.group_name,
             group_id: group._id,
             created_by: group.created_by,
-            moderators: group.moderators,
-            pilgrim_count: group.pilgrims?.length || 0
+            moderators: group.moderator_ids,
+            pilgrim_count: group.pilgrim_ids?.length || 0
         });
     } catch (error) {
         console.error('Get my group error:', error);
@@ -103,15 +103,15 @@ exports.trigger_sos = async (req, res) => {
         }
 
         // Find the group this pilgrim belongs to
-        const group = await Group.findOne({ pilgrims: req.user.id })
-            .populate('moderators', '_id full_name');
+        const group = await Group.findOne({ pilgrim_ids: req.user.id })
+            .populate('moderator_ids', '_id full_name');
 
         if (!group) {
             return res.status(404).json({ message: 'Not assigned to any group' });
         }
 
         // Create notifications for all moderators in the group
-        const moderatorIds = [group.created_by, ...group.moderators.map(m => m._id)];
+        const moderatorIds = [group.created_by, ...group.moderator_ids.map(m => m._id)];
 
         const notifications = moderatorIds.map(modId => ({
             user: modId,

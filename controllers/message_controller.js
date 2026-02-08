@@ -1,10 +1,10 @@
 const Message = require('../models/message_model');
 const Group = require('../models/group_model');
 
-// Send a message (Text, Voice, or Image)
+// Send a message (Text, Voice, Image, or TTS)
 exports.send_message = async (req, res) => {
     try {
-        const { group_id, type, content } = req.body;
+        const { group_id, type, content, is_urgent, original_text } = req.body;
         const file = req.file;
 
         // Validation
@@ -17,7 +17,7 @@ exports.send_message = async (req, res) => {
         // If pilgrims can reply, we'd check if they are in the group.
 
         let media_url = null;
-        if (type !== 'text') {
+        if (type === 'voice' || type === 'image') {
             if (!file) {
                 return res.status(400).json({ message: "Media file is required for voice/image messages" });
             }
@@ -32,7 +32,9 @@ exports.send_message = async (req, res) => {
             sender_model,
             type: type || 'text',
             content,
-            media_url
+            media_url,
+            is_urgent: is_urgent || false,
+            original_text: type === 'tts' ? original_text : undefined
         });
 
         // Populate sender info for immediate frontend display

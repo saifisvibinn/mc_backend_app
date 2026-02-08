@@ -18,16 +18,24 @@ const message_schema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ['text', 'voice', 'image'],
+        enum: ['text', 'voice', 'image', 'tts'],
         default: 'text'
     },
     content: {
         type: String,
-        required: function () { return this.type === 'text'; }
+        required: function () { return this.type === 'text' || this.type === 'tts'; }
     },
     media_url: {
         type: String,
-        required: function () { return this.type !== 'text'; }
+        required: function () { return this.type === 'voice' || this.type === 'image'; }
+    },
+    is_urgent: {
+        type: Boolean,
+        default: false
+    },
+    original_text: {
+        type: String,
+        required: function () { return this.type === 'tts'; }
     },
     created_at: {
         type: Date,
