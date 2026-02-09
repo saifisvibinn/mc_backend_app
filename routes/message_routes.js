@@ -13,4 +13,7 @@ router.post('/', upload.single('file'), message_ctrl.send_message);
 // Get messages for a group
 router.get('/group/:group_id', message_ctrl.get_group_messages);
 
+// Delete a message
+router.delete('/:message_id', message_ctrl.delete_message);
+
 module.exports = router;

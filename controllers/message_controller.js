@@ -77,3 +77,40 @@ exports.get_group_messages = async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 };
+
+// Delete a message (moderators only)
+exports.delete_message = async (req, res) => {
+    try {
+        const { message_id } = req.params;
+
+        const message = await Message.findById(message_id);
+        if (!message) {
+            return res.status(404).json({ message: "Message not found" });
+        }
+
+        // Verify the user is the sender or a moderator of the group
+        const group = await Group.findById(message.group_id);
+        if (!group) {
+            return res.status(404).json({ message: "Group not found" });
+        }
+
+        const isModerator = group.moderator_ids.some(id => id.toString() === req.user.id) ||
+            group.created_by.toString() === req.user.id;
+        const isSender = message.sender_id.toString() === req.user.id;
+
+        if (!isModerator && !isSender) {
+            return res.status(403).json({ message: "Not authorized to delete this message" });
+        }
+
+        await Message.findByIdAndDelete(message_id);
+
+        res.json({
+            success: true,
+            message: "Message deleted successfully"
+        });
+
+    } catch (error) {
+        console.error('Delete message error:', error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
