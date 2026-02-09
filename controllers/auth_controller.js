@@ -10,7 +10,7 @@ const { generateVerificationCode, sendVerificationEmail } = require('../config/e
 // Public Signup: Creates Pilgrim account (no email verification required)
 exports.register_user = async (req, res) => {
     try {
-        const { full_name, national_id, phone_number, password, email, medical_history, age, gender } = req.body;
+        const { full_name, national_id, phone_number, password, email, medical_history, age, gender, language } = req.body;
 
         // Check if national_id is already registered
         const existing_national_id = await Pilgrim.findOne({ national_id });
@@ -56,6 +56,7 @@ exports.register_user = async (req, res) => {
             medical_history,
             age,
             gender,
+            language: language || 'en',
             role: 'pilgrim'
         });
 
@@ -212,7 +213,8 @@ exports.login_user = async (req, res) => {
             token,
             role: role,
             user_id: user._id,
-            full_name: user.full_name
+            full_name: user.full_name,
+            language: user.language || 'en'
         });
     } catch (error) {
         console.error('Login error:', error);
@@ -223,7 +225,7 @@ exports.login_user = async (req, res) => {
 // Get pilgrim profile (for pilgrim themselves)
 exports.get_pilgrim = async (req, res) => {
     try {
-        const pilgrim = await Pilgrim.findById(req.user.id).select('_id full_name email national_id phone_number medical_history age gender email_verified');
+        const pilgrim = await Pilgrim.findById(req.user.id).select('_id full_name email national_id phone_number medical_history age gender email_verified language');
 
         if (!pilgrim) return res.status(404).json({ message: "Pilgrim not found" });
 
@@ -541,7 +543,7 @@ exports.get_profile = async (req, res) => {
         // Use role from JWT token to determine which collection to query
         if (req.user.role === 'pilgrim') {
             // Query Pilgrim collection
-            const pilgrim = await Pilgrim.findById(req.user.id).select('_id full_name email national_id phone_number medical_history age gender email_verified role created_at');
+            const pilgrim = await Pilgrim.findById(req.user.id).select('_id full_name email national_id phone_number medical_history age gender email_verified role created_at language');
 
             if (!pilgrim) {
                 return res.status(404).json({ message: "Profile not found" });
@@ -567,7 +569,7 @@ exports.get_profile = async (req, res) => {
             }
 
             // Fallback: approved moderators may still exist in Pilgrim collection
-            const pilgrim = await Pilgrim.findById(req.user.id).select('_id full_name email national_id phone_number medical_history age gender email_verified role created_at');
+            const pilgrim = await Pilgrim.findById(req.user.id).select('_id full_name email national_id phone_number medical_history age gender email_verified role created_at language');
             if (!pilgrim) {
                 return res.status(404).json({ message: "Profile not found" });
             }
@@ -592,7 +594,7 @@ exports.get_profile = async (req, res) => {
 // Update user profile
 exports.update_profile = async (req, res) => {
     try {
-        const { full_name, phone_number, age, gender, medical_history } = req.body;
+        const { full_name, phone_number, age, gender, medical_history, language } = req.body;
         const profile_picture = req.file ? req.file.filename : undefined;
 
         // Use role from JWT token to determine which collection to update
@@ -603,14 +605,15 @@ exports.update_profile = async (req, res) => {
                 ...(phone_number && { phone_number }),
                 ...(age !== undefined && { age: parseInt(age) }),
                 ...(gender && { gender }),
-                ...(medical_history !== undefined && { medical_history })
+                ...(medical_history !== undefined && { medical_history }),
+                ...(language && { language })
             };
 
             const updatedPilgrim = await Pilgrim.findByIdAndUpdate(
                 req.user.id,
                 updateData,
                 { new: true }
-            ).select('_id full_name email national_id phone_number medical_history age gender email_verified role created_at');
+            ).select('_id full_name email national_id phone_number medical_history age gender email_verified role created_at language');
 
             if (!updatedPilgrim) {
                 return res.status(404).json({ message: "Profile not found" });
@@ -642,6 +645,27 @@ exports.update_profile = async (req, res) => {
         }
     } catch (error) {
         console.error('Update profile error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Update language preference
+exports.update_language = async (req, res) => {
+    try {
+        const { language } = req.body;
+
+        if (req.user.role === 'pilgrim') {
+            await Pilgrim.findByIdAndUpdate(
+                req.user.id,
+                { language },
+                { new: true }
+            );
+        }
+        // Could also update for User/Moderator if they have a language field
+
+        res.json({ message: "Language updated successfully" });
+    } catch (error) {
+        console.error('Update language error:', error);
         res.status(500).json({ error: error.message });
     }
 };

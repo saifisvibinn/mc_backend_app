@@ -24,7 +24,8 @@ exports.register_schema = Joi.object({
     }),
     medical_history: Joi.string().optional().allow('').max(500),
     age: Joi.number().optional().min(0).max(120),
-    gender: Joi.string().optional().valid('male', 'female', 'other')
+    gender: Joi.string().optional().valid('male', 'female', 'other'),
+    language: Joi.string().optional().valid('en', 'ar', 'ur', 'fr', 'id', 'tr').default('en')
 });
 
 exports.login_schema = Joi.object({
@@ -43,7 +44,8 @@ exports.register_pilgrim_schema = Joi.object({
     medical_history: Joi.string().optional().max(500),
     email: Joi.string().optional().email().messages({ 'string.email': 'Invalid email format' }),
     age: Joi.number().optional().min(0).max(120),
-    gender: Joi.string().optional().valid('male', 'female', 'other')
+    gender: Joi.string().optional().valid('male', 'female', 'other'),
+    language: Joi.string().optional().valid('en', 'ar', 'ur', 'fr', 'id', 'tr').default('en')
 });
 
 exports.update_profile_schema = Joi.object({
@@ -51,7 +53,12 @@ exports.update_profile_schema = Joi.object({
     phone_number: Joi.string().optional(),
     age: Joi.number().optional().min(0).max(120),
     gender: Joi.string().optional().valid('male', 'female', 'other'),
-    medical_history: Joi.string().optional().allow('').max(500)
+    medical_history: Joi.string().optional().allow('').max(500),
+    language: Joi.string().optional().valid('en', 'ar', 'ur', 'fr', 'id', 'tr')
+});
+
+exports.update_language_schema = Joi.object({
+    language: Joi.string().required().valid('en', 'ar', 'ur', 'fr', 'id', 'tr')
 });
 
 // Group validations

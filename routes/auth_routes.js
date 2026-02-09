@@ -24,6 +24,7 @@ const upload = require('../middleware/upload_middleware');
 router.use(protect);
 router.get('/me', auth_ctrl.get_profile);
 router.put('/update-profile', upload.single('profile_picture'), validate(update_profile_schema), auth_ctrl.update_profile);
+router.put('/update-language', validate(require('../middleware/schemas').update_language_schema), auth_ctrl.update_language);
 router.put('/location', auth_ctrl.update_location);
 
 // Email management for pilgrims
