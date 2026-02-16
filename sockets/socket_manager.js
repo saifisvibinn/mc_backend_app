@@ -57,10 +57,11 @@ const initializeSockets = (io) => {
             const target = getSocketByUserId(to);
             console.log(`[Socket] Target socket found: ${target ? 'YES (socket id: ' + target.id + ')' : 'NO (will send push notification)'}`);
 
-            // Fetch caller information from database
+            // Fetch caller information from database and create call record
             try {
                 const User = require('../models/user_model');
                 const Pilgrim = require('../models/pilgrim_model');
+                const CallHistory = require('../models/call_history_model');
                 const { sendPushNotification } = require('../services/pushNotificationService');
 
                 console.log(`[Socket] Fetching caller info for userId: ${socket.data.userId}`);
@@ -86,6 +87,21 @@ const initializeSockets = (io) => {
                 if (!recipient) {
                     recipient = await Pilgrim.findById(to).select('fcm_token full_name');
                 }
+
+                // Create call history record
+                const caller_model = caller?.role === 'pilgrim' ? 'Pilgrim' : 'User';
+                const receiver_model = recipient?.role === 'pilgrim' ? 'Pilgrim' : 'User';
+                const callRecord = await CallHistory.create({
+                    caller_id: socket.data.userId,
+                    caller_model,
+                    receiver_id: to,
+                    receiver_model,
+                    call_type: 'internet',
+                    status: 'ringing'
+                });
+                console.log(`[Socket] Call record created: ${callRecord._id}`);
+                // Store call record ID in socket data for later updates
+                socket.data.currentCallId = callRecord._id;
 
                 if (target) {
                     // Recipient is online - send via socket
@@ -142,11 +158,25 @@ const initializeSockets = (io) => {
                 }
             }
         });
-        socket.on('call-answer', ({ to, answer }) => {
+        socket.on('call-answer', async ({ to, answer }) => {
             console.log(`[Socket] Call answer from ${socket.data.userId} to ${to}`);
             const target = getSocketByUserId(to);
             if (target) {
                 target.emit('call-answer', { answer, from: socket.data.userId });
+
+                // Update call record to in-progress
+                try {
+                    const CallHistory = require('../models/call_history_model');
+                    if (target.data.currentCallId) {
+                        await CallHistory.findByIdAndUpdate(target.data.currentCallId, {
+                            status: 'in-progress',
+                            started_at: new Date()
+                        });
+                        console.log(`[Socket] Call record updated to in-progress`);
+                    }
+                } catch (error) {
+                    console.error('[Socket] Error updating call record:', error);
+                }
             } else {
                 console.log(`[Socket] Target user ${to} not found for call answer`);
             }
@@ -158,19 +188,104 @@ const initializeSockets = (io) => {
             }
         });
 
-        socket.on('call-declined', ({ to }) => {
+        socket.on('call-declined', async ({ to }) => {
             console.log(`[Socket] Call declined from ${socket.data.userId} to ${to}`);
             const target = getSocketByUserId(to);
             if (target) {
                 target.emit('call-declined', { from: socket.data.userId });
+
+                // Update call record to declined
+                try {
+                    const CallHistory = require('../models/call_history_model');
+                    if (target.data.currentCallId) {
+                        await CallHistory.findByIdAndUpdate(target.data.currentCallId, {
+                            status: 'declined',
+                            ended_at: new Date()
+                        });
+                        console.log(`[Socket] Call record updated to declined`);
+                        delete target.data.currentCallId;
+                    }
+                } catch (error) {
+                    console.error('[Socket] Error updating call record:', error);
+                }
             }
         });
 
-        socket.on('call-end', ({ to }) => {
+        socket.on('call-end', async ({ to }) => {
             console.log(`[Socket] Call end from ${socket.data.userId} to ${to}`);
             const target = getSocketByUserId(to);
             if (target) {
                 target.emit('call-end', { from: socket.data.userId });
+            }
+
+            // Update call record to completed
+            try {
+                const CallHistory = require('../models/call_history_model');
+                const { sendPushNotification } = require('../services/pushNotificationService');
+                const User = require('../models/user_model');
+                const Pilgrim = require('../models/pilgrim_model');
+
+                if (socket.data.currentCallId) {
+                    const callRecord = await CallHistory.findById(socket.data.currentCallId);
+                    if (callRecord) {
+                        const isMissed = callRecord.status === 'ringing';
+                        const duration = callRecord.started_at
+                            ? Math.floor((new Date() - callRecord.started_at) / 1000)
+                            : 0;
+
+                        // Identify the OTHER person (the one who missed the call)
+                        // If I am caller, other is receiver. If I am receiver (unlikely for call-end), other is caller.
+                        // Usually call-end comes from caller hanging up.
+                        let targetUserId = callRecord.receiver_id.toString();
+                        if (socket.data.userId === targetUserId) {
+                            targetUserId = callRecord.caller_id.toString();
+                        }
+
+                        await CallHistory.findByIdAndUpdate(socket.data.currentCallId, {
+                            status: isMissed ? 'missed' : 'completed',
+                            ended_at: new Date(),
+                            duration
+                        });
+                        console.log(`[Socket] Call record updated: ${isMissed ? 'missed' : 'completed'}, duration: ${duration}s`);
+
+                        if (isMissed) {
+                            // Send Missed Call Notification
+                            console.log(`[Socket] Sending missed call notification to ${targetUserId}`);
+                            let targetUser = await User.findById(targetUserId).select('fcm_token full_name');
+                            if (!targetUser) {
+                                targetUser = await Pilgrim.findById(targetUserId).select('fcm_token full_name');
+                            }
+
+                            if (targetUser?.fcm_token) {
+                                // Get caller name
+                                let callerName = 'Someone';
+                                if (socket.data.userId === callRecord.caller_id.toString()) {
+                                    // I am caller
+                                    let me = await User.findById(socket.data.userId).select('full_name');
+                                    if (!me) me = await Pilgrim.findById(socket.data.userId).select('full_name');
+                                    callerName = me?.full_name || 'Unknown';
+                                }
+
+                                await sendPushNotification(
+                                    [targetUser.fcm_token],
+                                    'Missed Call',
+                                    `You missed a call from ${callerName}`,
+                                    {
+                                        type: 'missed_call',
+                                        callId: callRecord._id.toString(),
+                                        callerId: socket.data.userId,
+                                        callerName: callerName
+                                    }
+                                );
+                                console.log(`[Socket] ✓ Missed call notification sent to ${targetUser.full_name}`);
+                            }
+                        }
+
+                        delete socket.data.currentCallId;
+                    }
+                }
+            } catch (error) {
+                console.error('[Socket] Error updating call record:', error);
             }
         });
 

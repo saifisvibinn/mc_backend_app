@@ -53,6 +53,7 @@ app.use('/api/notifications', notification_routes);
 app.use('/api/pilgrim', pilgrim_routes);
 app.use('/api/messages', require('./routes/message_routes'));
 app.use('/api/communication', require('./routes/communication_routes'));
+app.use('/api/call-history', require('./routes/call_history_routes'));
 
 // Error Handling
 app.use((err, req, res, next) => {
