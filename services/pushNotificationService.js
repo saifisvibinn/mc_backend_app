@@ -10,18 +10,19 @@ async function sendPushNotification(tokens, title, body, data = {}, isUrgent = f
     // We ONLY want Data-Only for "Urgent TTS" messages so the app can control the "Sound -> TTS -> Sound" sequence.
     // For other urgent messages (Text, Voice Note) or normal messages, we want standard system notifications.
     const isUrgentTTS = isUrgent && data.messageType === 'tts';
+    const isIncomingCall = data.type === 'incoming_call';
 
     // Construct the message payload (Base)
     const message = {
         tokens: tokens,
         data: {
             ...data,
-            type: isUrgent ? 'urgent' : 'normal',
+            type: isIncomingCall ? 'incoming_call' : (isUrgent ? 'urgent' : 'normal'),
             title: title,
             body: body,
         },
         android: {
-            priority: isUrgent ? 'high' : 'normal',
+            priority: (isUrgent || isIncomingCall) ? 'high' : 'normal',
         },
         // We can add APNS (iOS) config here if needed later
     };
@@ -31,19 +32,23 @@ async function sendPushNotification(tokens, title, body, data = {}, isUrgent = f
         // We omit the 'notification' key so the system doesn't show a banner/sound automatically.
         // Omitting 'notification' key is enough.
     } else {
-        // Standard Notification for everything else (Urgent Text, Urgent Voice, Normal messages)
+        // Standard Notification for everything else (Urgent Text, Urgent Voice, Normal messages, Incoming Calls)
         message.notification = {
             title: title,
             body: body,
         };
 
         message.android.notification = {
-            channelId: isUrgent ? 'urgent' : 'default',
+            channelId: isIncomingCall ? 'incoming_call' : (isUrgent ? 'urgent' : 'default'),
             // sound: isUrgent ? 'urgent.wav' : 'default', // Let channel handle sound for default
             sound: isUrgent ? 'urgent.wav' : undefined,
             priority: 'max', // Force heads-up for all notifications
             visibility: 'public',
         };
+
+        // Note: FCM doesn't support action buttons in the notification payload directly
+        // Action buttons need to be handled on the client side using Expo Notifications
+
         console.log('Sending Standard Notification:', JSON.stringify(message, null, 2));
     }
 
