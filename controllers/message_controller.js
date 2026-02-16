@@ -1,11 +1,19 @@
 const Message = require('../models/message_model');
 const Group = require('../models/group_model');
+const Pilgrim = require('../models/pilgrim_model');
+const User = require('../models/user_model');
+const { sendPushNotification } = require('../services/pushNotificationService');
 
 // Send a message (Text, Voice, Image, or TTS)
 exports.send_message = async (req, res) => {
     try {
-        const { group_id, type, content, is_urgent, original_text } = req.body;
+        let { group_id, type, content, is_urgent, original_text } = req.body;
         const file = req.file;
+
+        // Parse is_urgent since FormData sends it as string "true"/"false"
+        if (typeof is_urgent === 'string') {
+            is_urgent = is_urgent === 'true';
+        }
 
         // Validation
         if (!group_id) {
@@ -34,11 +42,48 @@ exports.send_message = async (req, res) => {
             content,
             media_url,
             is_urgent: is_urgent || false,
-            original_text: type === 'tts' ? original_text : undefined
+            is_urgent: is_urgent || false,
+            content,
+            media_url,
+            is_urgent: is_urgent || false,
+            original_text: type === 'tts' ? original_text : undefined,
+            duration: req.body.duration ? parseInt(req.body.duration) : 0
         });
 
         // Populate sender info for immediate frontend display
         await message.populate('sender_id', 'full_name profile_picture role');
+
+        // --- Socket.io Broadcasting ---
+        const io = req.app.get('socketio');
+        if (io) {
+            io.to(`group_${group_id}`).emit('new_message', message);
+        }
+
+        // --- Push Notification ---
+        // Find all pilgrims in the group (excluding sender)
+        const group = await Group.findById(group_id);
+        if (group) {
+            const recipientIds = group.pilgrim_ids.filter(id => id.toString() !== req.user.id);
+            const pilgrims = await Pilgrim.find({
+                _id: { $in: recipientIds },
+                fcm_token: { $ne: null }
+            }).select('fcm_token');
+
+            const tokens = pilgrims.map(p => p.fcm_token);
+            if (tokens.length > 0) {
+                const title = is_urgent ? 'URGENT: New Broadcast' : 'New Message';
+                const body = type === 'text' || type === 'tts'
+                    ? (content.length > 50 ? content.substring(0, 50) + '...' : content)
+                    : `Sent a ${type} message`;
+
+                sendPushNotification(tokens, title, body, {
+                    group_id,
+                    type: 'new_message',
+                    messageType: type, // Pass 'text', 'tts', 'voice', etc.
+                    message_id: message._id.toString()
+                }, is_urgent);
+            }
+        }
 
         res.status(201).json({
             success: true,
@@ -54,8 +99,13 @@ exports.send_message = async (req, res) => {
 // Send an individual message to a pilgrim (Text, Voice, Image, or TTS)
 exports.send_individual_message = async (req, res) => {
     try {
-        const { group_id, recipient_id, type, content, is_urgent, original_text } = req.body;
+        let { group_id, recipient_id, type, content, is_urgent, original_text } = req.body;
         const file = req.file;
+
+        // Parse is_urgent since FormData sends it as string "true"/"false"
+        if (typeof is_urgent === 'string') {
+            is_urgent = is_urgent === 'true';
+        }
 
         if (!group_id || !recipient_id) {
             return res.status(400).json({ message: "Group ID and recipient ID are required" });
@@ -96,10 +146,39 @@ exports.send_individual_message = async (req, res) => {
             content,
             media_url,
             is_urgent: is_urgent || false,
-            original_text: type === 'tts' ? original_text : undefined
+            is_urgent: is_urgent || false,
+            original_text: type === 'tts' ? original_text : undefined,
+            duration: req.body.duration ? parseInt(req.body.duration) : 0
         });
 
         await message.populate('sender_id', 'full_name profile_picture role');
+
+        // --- Socket.io Broadcasting ---
+        const io = req.app.get('socketio');
+        // We can emit to specific user room if we implemented that, 
+        // or just group room and let frontend filter, 
+        // OR emit to specific socket ID if we tracked it.
+        // For now, emit to group room and frontend filters by recipient_id
+        if (io) {
+            io.to(`group_${group_id}`).emit('new_message', message);
+        }
+
+        // --- Push Notification ---
+        const recipient = await Pilgrim.findById(recipient_id).select('fcm_token');
+        if (recipient && recipient.fcm_token) {
+            const title = is_urgent ? 'URGENT: Personal Message' : 'New Personal Message';
+            const body = type === 'text' || type === 'tts'
+                ? (content.length > 50 ? content.substring(0, 50) + '...' : content)
+                : `Sent you a ${type} message`;
+
+            sendPushNotification([recipient.fcm_token], title, body, {
+                group_id,
+                recipient_id,
+                type: 'new_message',
+                messageType: type, // Pass 'text', 'tts', 'voice', etc.
+                message_id: message._id.toString()
+            }, is_urgent);
+        }
 
         res.status(201).json({
             success: true,

@@ -10,6 +10,7 @@ const user_schema = new mongoose.Schema({
         default: 'pilgrim'
     },
     profile_picture: { type: String, default: null },
+    fcm_token: { type: String, default: null }, // FCM Token for Push Notifications
     phone_number: { type: String, required: true, unique: true }, // Each user has unique phone number
     active: { type: Boolean, default: true }, // Track if account is active
 

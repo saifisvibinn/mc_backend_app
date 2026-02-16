@@ -25,6 +25,7 @@ const { initializeSockets } = require('./sockets/socket_manager');
 
 // Initialize Sockets
 initializeSockets(io);
+app.set('socketio', io);
 
 // Middleware
 app.use(cors({

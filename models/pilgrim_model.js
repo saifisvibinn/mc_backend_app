@@ -13,6 +13,7 @@ const pilgrim_schema = new mongoose.Schema({
     medical_history: String, // Optional medical information for pilgrims
     role: { type: String, enum: ['pilgrim', 'moderator'], default: 'pilgrim' }, // Can be upgraded to moderator
     language: { type: String, default: 'en' }, // Language preference (e.g., 'en', 'ar', 'ur', etc.)
+    fcm_token: { type: String, default: null }, // FCM Token for Push Notifications
 
     // Live Tracking Fields (Replaces Hardware Band)
     current_latitude: { type: Number },

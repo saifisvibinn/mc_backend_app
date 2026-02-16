@@ -22,10 +22,13 @@ const upload = require('../middleware/upload_middleware');
 
 // Protected routes
 router.use(protect);
+router.post('/logout', auth_ctrl.logout_user);
 router.get('/me', auth_ctrl.get_profile);
 router.put('/update-profile', upload.single('profile_picture'), validate(update_profile_schema), auth_ctrl.update_profile);
 router.put('/update-language', validate(require('../middleware/schemas').update_language_schema), auth_ctrl.update_language);
 router.put('/location', auth_ctrl.update_location);
+// FCM Token Update
+router.put('/fcm-token', auth_ctrl.update_fcm_token);
 
 // Email management for pilgrims
 router.post('/add-email', validate(add_email_schema), auth_ctrl.add_email);

@@ -42,6 +42,14 @@ const message_schema = new mongoose.Schema({
         type: String,
         required: function () { return this.type === 'tts'; }
     },
+    repeat_count: {
+        type: Number,
+        default: 1
+    },
+    duration: {
+        type: Number, // In seconds
+        default: 0
+    },
     read_by: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Pilgrim'

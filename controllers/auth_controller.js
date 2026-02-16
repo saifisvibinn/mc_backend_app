@@ -222,6 +222,25 @@ exports.login_user = async (req, res) => {
     }
 };
 
+// Logout user (clear FCM token)
+exports.logout_user = async (req, res) => {
+    try {
+        const user_id = req.user.id;
+        const role = req.user.role;
+
+        if (role === 'pilgrim') {
+            await Pilgrim.findByIdAndUpdate(user_id, { fcm_token: null });
+        } else {
+            await User.findByIdAndUpdate(user_id, { fcm_token: null });
+        }
+
+        res.json({ success: true, message: 'Logged out successfully' });
+    } catch (error) {
+        console.error('Logout error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 // Get pilgrim profile (for pilgrim themselves)
 exports.get_pilgrim = async (req, res) => {
     try {
@@ -872,5 +891,27 @@ exports.get_pilgrim_by_id = async (req, res) => {
         res.json(pilgrimObj);
     } catch (error) {
         res.status(500).json({ error: error.message });
+    }
+};
+
+// Update FCM Token
+exports.update_fcm_token = async (req, res) => {
+    try {
+        const { fcm_token } = req.body;
+
+        if (!fcm_token) {
+            return res.status(400).json({ message: "FCM Token is required" });
+        }
+
+        if (req.user.role === 'pilgrim') {
+            await Pilgrim.findByIdAndUpdate(req.user.id, { fcm_token });
+        } else {
+            await User.findByIdAndUpdate(req.user.id, { fcm_token });
+        }
+
+        res.json({ success: true, message: "FCM Token updated" });
+    } catch (error) {
+        console.error('Update FCM Token error:', error);
+        res.status(500).json({ message: "Server error" });
     }
 };

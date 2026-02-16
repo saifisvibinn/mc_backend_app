@@ -6,28 +6,46 @@ const admin = require('../config/firebase');
  * This is preferred for "Urgent" background notifications on Android.
  */
 async function sendPushNotification(tokens, title, body, data = {}, isUrgent = false) {
-    // Construct the message payload
+    // Determine if we should use Data-Only (Silent) payload.
+    // We ONLY want Data-Only for "Urgent TTS" messages so the app can control the "Sound -> TTS -> Sound" sequence.
+    // For other urgent messages (Text, Voice Note) or normal messages, we want standard system notifications.
+    const isUrgentTTS = isUrgent && data.messageType === 'tts';
+
+    // Construct the message payload (Base)
     const message = {
-        tokens: tokens, // Array of FCM tokens
-        notification: {
-            title: title,
-            body: body,
-        },
+        tokens: tokens,
         data: {
             ...data,
             type: isUrgent ? 'urgent' : 'normal',
+            title: title,
+            body: body,
         },
         android: {
             priority: isUrgent ? 'high' : 'normal',
-            notification: {
-                channelId: isUrgent ? 'urgent' : 'default',
-                sound: isUrgent ? 'urgent' : 'default',
-                priority: isUrgent ? 'max' : 'default',
-                defaultSound: !isUrgent,
-            },
         },
         // We can add APNS (iOS) config here if needed later
     };
+
+    if (isUrgentTTS) {
+        // Data-Only for Urgent TTS: 
+        // We omit the 'notification' key so the system doesn't show a banner/sound automatically.
+        // Omitting 'notification' key is enough.
+    } else {
+        // Standard Notification for everything else (Urgent Text, Urgent Voice, Normal messages)
+        message.notification = {
+            title: title,
+            body: body,
+        };
+
+        message.android.notification = {
+            channelId: isUrgent ? 'urgent' : 'default',
+            // sound: isUrgent ? 'urgent.wav' : 'default', // Let channel handle sound for default
+            sound: isUrgent ? 'urgent.wav' : undefined,
+            priority: 'max', // Force heads-up for all notifications
+            visibility: 'public',
+        };
+        console.log('Sending Standard Notification:', JSON.stringify(message, null, 2));
+    }
 
     try {
         const response = await admin.messaging().sendEachForMulticast(message);
