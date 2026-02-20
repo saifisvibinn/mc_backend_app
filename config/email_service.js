@@ -1,12 +1,18 @@
 const nodemailer = require('nodemailer');
 const { logger } = require('./logger');
 
-// Create transporter with Gmail SMTP
+// Create transporter with explicit configuration to prevent Railway timeouts
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // Use SSL
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
+    },
+    tls: {
+        // do not fail on invalid certs
+        rejectUnauthorized: false
     }
 });
 
