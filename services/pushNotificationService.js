@@ -27,20 +27,20 @@ async function sendPushNotification(tokens, title, body, data = {}, isUrgent = f
         // We can add APNS (iOS) config here if needed later
     };
 
-    if (isUrgentTTS) {
-        // Data-Only for Urgent TTS: 
-        // We omit the 'notification' key so the system doesn't show a banner/sound automatically.
-        // Omitting 'notification' key is enough.
+    if (isUrgentTTS || isIncomingCall) {
+        // Data-Only for Urgent TTS and Incoming Calls: 
+        // We omit the 'notification' key so the system doesn't show a basic banner/sound automatically.
+        // This allows our custom React Native BackgroundTask (Notifee/Speech) to take full control.
+        console.log(`Sending Data-Only Push for ${isIncomingCall ? 'Incoming Call' : 'Urgent TTS'}`);
     } else {
-        // Standard Notification for everything else (Urgent Text, Urgent Voice, Normal messages, Incoming Calls)
+        // Standard Notification for everything else (Urgent Text, Urgent Voice, Normal messages)
         message.notification = {
             title: title,
             body: body,
         };
 
         message.android.notification = {
-            channelId: isIncomingCall ? 'incoming_call' : (isUrgent ? 'urgent' : 'default'),
-            // sound: isUrgent ? 'urgent.wav' : 'default', // Let channel handle sound for default
+            channelId: isUrgent ? 'urgent' : 'default',
             sound: isUrgent ? 'urgent.wav' : undefined,
             priority: 'max', // Force heads-up for all notifications
             visibility: 'public',
