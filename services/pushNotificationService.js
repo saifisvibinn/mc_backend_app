@@ -27,11 +27,34 @@ async function sendPushNotification(tokens, title, body, data = {}, isUrgent = f
         // We can add APNS (iOS) config here if needed later
     };
 
-    if (isUrgentTTS || isIncomingCall) {
-        // Data-Only for Urgent TTS and Incoming Calls: 
+    if (isUrgentTTS) {
+        // Data-Only for Urgent TTS ONLY: 
         // We omit the 'notification' key so the system doesn't show a basic banner/sound automatically.
         // This allows our custom React Native BackgroundTask (Notifee/Speech) to take full control.
-        console.log(`Sending Data-Only Push for ${isIncomingCall ? 'Incoming Call' : 'Urgent TTS'}`);
+        console.log(`Sending Data-Only Push for Urgent TTS`);
+    } else if (isIncomingCall) {
+        // Incoming Calls: Use standard notification with our custom channel.
+        // CRITICAL: In killed state, Expo's JS engine does NOT boot for data-only messages,
+        // so we MUST include a notification block so Android can ring the phone natively
+        // using the channel's sound and vibration pattern.
+        message.notification = {
+            title: data.callerName || 'Incoming Call',
+            body: `${data.callerRole || 'Someone'} is calling you`,
+        };
+
+        message.android.notification = {
+            channelId: 'incoming_call_ui_v2',
+            sound: 'urgent',
+            priority: 'max',
+            visibility: 'public',
+            tag: 'incoming_call', // Prevents duplicate notifications
+        };
+
+        console.log('Sending Incoming Call Push with notification block:', JSON.stringify({
+            title: message.notification.title,
+            channelId: message.android.notification.channelId,
+            callerName: data.callerName,
+        }));
     } else {
         // Standard Notification for everything else (Urgent Text, Urgent Voice, Normal messages)
         message.notification = {
