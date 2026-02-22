@@ -43,7 +43,7 @@ async function sendPushNotification(tokens, title, body, data = {}, isUrgent = f
         };
 
         message.android.notification = {
-            channelId: 'incoming_call_ui_v2',
+            channelId: 'incoming_call_v3',
             sound: 'urgent',
             priority: 'max',
             visibility: 'public',
