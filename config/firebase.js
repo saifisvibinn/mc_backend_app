@@ -20,6 +20,10 @@ if (fs.existsSync(serviceAccountPath)) {
     // Fallback to environment variable (for Railway)
     try {
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        // Railway stores \n as literal characters — restore real newlines in the PEM key
+        if (serviceAccount.private_key) {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
         });
