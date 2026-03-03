@@ -18,4 +18,7 @@ router.put('/mark-read', protect, call_history_ctrl.mark_read);
 // Decline a call from background notification (no auth — called from device when app is killed)
 router.post('/decline', call_history_ctrl.decline_call);
 
+// Answer a call from background/killed state (no auth — REST fallback when socket isn't connected)
+router.post('/answer', call_history_ctrl.answer_call);
+
 module.exports = router;
