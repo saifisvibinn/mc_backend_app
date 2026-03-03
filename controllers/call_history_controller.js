@@ -80,10 +80,43 @@ exports.mark_read = async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to mark calls as read' });
     }
 };
-// Decline a call from background notification (called via REST when app is backgrounded/killed)
+// Answer a call from background/killed state (REST fallback when socket isn't connected)
+exports.answer_call = async (req, res) => {
+    try {
+        const { callerId, answererId } = req.body;
+        if (!callerId) return res.status(400).json({ success: false, message: 'callerId required' });
+
+        // Find the caller's active socket and emit call-answer
+        const io = req.app.get('socketio');
+        if (io) {
+            const callerSocket = Array.from(io.sockets.sockets.values())
+                .find(s => s.data.userId === callerId);
+
+            if (callerSocket) {
+                callerSocket.emit('call-answer', { from: answererId || 'background' });
+                logger.info(`[API] call-answer emitted to caller ${callerId} from ${answererId || 'background'}`);
+            } else {
+                logger.warn(`[API] Caller ${callerId} socket not found for call-answer (may have disconnected)`);
+            }
+        }
+
+        // Update any ringing call records to in-progress
+        await CallHistory.updateMany(
+            { caller_id: callerId, status: 'ringing' },
+            { status: 'in-progress', answered_at: new Date() }
+        );
+
+        res.json({ success: true });
+    } catch (error) {
+        logger.error(`Error answering call via REST: ${error.message}`);
+        res.status(500).json({ success: false, message: 'Failed to answer call' });
+    }
+};
+
+// Decline a call from background/killed state (REST fallback when socket isn't connected)
 exports.decline_call = async (req, res) => {
     try {
-        const { callerId } = req.body;
+        const { callerId, declinerId } = req.body;
         if (!callerId) return res.status(400).json({ success: false, message: 'callerId required' });
 
         // Find the caller's active socket and emit call-declined
@@ -93,15 +126,14 @@ exports.decline_call = async (req, res) => {
                 .find(s => s.data.userId === callerId);
 
             if (callerSocket) {
-                callerSocket.emit('call-declined', { from: 'background' });
-                console.log(`[API] call-declined emitted to caller ${callerId}`);
+                callerSocket.emit('call-declined', { from: declinerId || 'background' });
+                logger.info(`[API] call-declined emitted to caller ${callerId} from ${declinerId || 'background'}`);
             } else {
-                console.log(`[API] Caller ${callerId} socket not found (may have disconnected)`);
+                logger.warn(`[API] Caller ${callerId} socket not found for call-declined (may have disconnected)`);
             }
         }
 
         // Mark any ringing call records as declined
-        const CallHistory = require('../models/call_history_model');
         await CallHistory.updateMany(
             { caller_id: callerId, status: 'ringing' },
             { status: 'declined', ended_at: new Date() }
@@ -109,7 +141,7 @@ exports.decline_call = async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
-        console.error('Error declining call:', error);
+        logger.error(`Error declining call via REST: ${error.message}`);
         res.status(500).json({ success: false, message: 'Failed to decline call' });
     }
 };
