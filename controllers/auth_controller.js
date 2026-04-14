@@ -13,70 +13,7 @@ const { sendSuccess, sendError, sendValidationError, sendServerError, JWT_EXPIRA
 /**
  * Register a new pilgrim account (public signup)
  */
-exports.register_user = async (req, res) => {
-    try {
-        const { full_name, national_id, phone_number, password, email, medical_history, age, gender, language } = req.body;
 
-        // Check for existing user with same credentials
-        const existing_user = await User.findOne({
-            $or: [
-                { national_id },
-                { phone_number },
-                ...(email && email.trim() ? [{ email: email.trim() }] : [])
-            ]
-        });
-
-        if (existing_user) {
-            if (existing_user.national_id === national_id) {
-                return sendValidationError(res, { national_id: 'National ID is already registered' });
-            }
-            if (existing_user.phone_number === phone_number) {
-                return sendValidationError(res, { phone_number: 'Phone number is already registered' });
-            }
-            if (email && existing_user.email === email.trim()) {
-                return sendValidationError(res, { email: 'Email is already registered' });
-            }
-        }
-
-        const hashed_password = await bcrypt.hash(password, 10);
-
-        // Create Pilgrim account
-        const pilgrim = await User.create({
-            full_name,
-            national_id,
-            phone_number,
-            password: hashed_password,
-            email: email && email.trim() ? email.trim() : undefined,
-            medical_history,
-            age,
-            gender,
-            language: language || 'en',
-            user_type: 'pilgrim'
-        });
-
-        // Generate JWT token
-        const token = jwt.sign(
-            { id: pilgrim._id, role: 'pilgrim' },
-            process.env.JWT_SECRET,
-            { expiresIn: JWT_EXPIRATION }
-        );
-
-        logger.info(`Pilgrim registered: ${pilgrim.full_name} (${pilgrim._id})`);
-
-        sendSuccess(res, 201, 'Pilgrim account created successfully', {
-            token,
-            role: 'pilgrim',
-            user_id: pilgrim._id,
-            full_name: pilgrim.full_name
-        });
-    } catch (error) {
-        sendServerError(res, logger, 'Registration error', error);
-    }
-};
-
-/**
- * Verify moderator email with OTP code (for moderator registration flow)
- */
 exports.verify_email = async (req, res) => {
     try {
         const { email, code } = req.body;

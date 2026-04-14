@@ -21,35 +21,6 @@ const SIMPLE_PASSWORD_MIN = 6;
  */
 
 // Pilgrim Registration (Public Signup)
-exports.register_schema = Joi.object({
-    full_name: Joi.string().required().min(3).max(100).messages({
-        'string.empty': 'Full name is required',
-        'string.min': 'Full name must be at least 3 characters',
-        'any.required': 'Full name is required'
-    }),
-    national_id: Joi.string().required().messages({
-        'string.empty': 'National ID is required',
-        'any.required': 'National ID is required'
-    }),
-    phone_number: Joi.string().required().messages({
-        'string.empty': 'Phone number is required',
-        'any.required': 'Phone number is required'
-    }),
-    password: Joi.string().required().min(PASSWORD_MIN_LENGTH).pattern(PASSWORD_PATTERN).messages({
-        'string.min': PASSWORD_MESSAGE,
-        'string.pattern.base': PASSWORD_MESSAGE,
-        'any.required': 'Password is required'
-    }),
-    email: Joi.string().email().optional().allow('').messages({
-        'string.email': 'Please provide a valid email address'
-    }),
-    medical_history: Joi.string().optional().allow('').max(500),
-    age: Joi.number().optional().min(0).max(120),
-    gender: Joi.string().optional().valid(...GENDERS),
-    language: Joi.string().optional().valid(...SUPPORTED_LANGUAGES).default('en')
-});
-
-// Login (Universal)
 exports.login_schema = Joi.object({
     identifier: Joi.string().required().messages({
         'string.empty': 'Email, national ID, or phone number is required',
