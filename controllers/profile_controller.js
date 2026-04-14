@@ -312,6 +312,7 @@ exports.request_moderator = async (req, res) => {
 exports.get_my_group = async (req, res) => {
     try {
         // Find group that contains this user (pilgrim)
+        const user_full = await User.findById(req.user.id);
         const group = await Group.findOne({ pilgrim_ids: req.user.id })
             .populate('created_by', 'full_name email phone_number current_latitude current_longitude')
             .populate('moderator_ids', 'full_name email phone_number current_latitude current_longitude');
@@ -326,7 +327,7 @@ exports.get_my_group = async (req, res) => {
             created_by: group.created_by,
             moderators: group.moderator_ids,
             pilgrim_count: group.pilgrim_ids?.length || 0,
-            allow_pilgrim_navigation: group.allow_pilgrim_navigation || false
+            allow_pilgrim_navigation: group.allow_pilgrim_navigation || false, hotel_name: user_full.hotel_name, room_number: user_full.room_number, bus_number: user_full.bus_info
         });
     } catch (error) {
         sendServerError(res, logger, 'Get my group error', error);

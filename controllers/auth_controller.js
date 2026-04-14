@@ -223,6 +223,127 @@ exports.login_user = async (req, res) => {
 /**
  * Logout user (clear FCM token)
  */
+
+/**
+ * Provision a Pilgrim to a Group with Accommodation & Transport details
+ */
+exports.provision_pilgrim = async (req, res) => {
+    try {
+        const { group_id } = req.params;
+        const { 
+            full_name, phone_number, age, language, ethnicity, 
+            hotel_id, hotel_name, room_id, room_number, 
+            bus_id, bus_info, visa
+        } = req.body;
+
+        // Group check
+        const Group = require('../models/group_model');
+        const User = require('../models/user_model');
+        const { logger } = require('../config/logger');
+        const { sendSuccess, sendError, sendServerError } = require('../utils/response_helpers');
+
+        const group = await Group.findById(group_id);
+        if (!group) return sendError(res, 404, 'Group not found');
+
+        let user = await User.findOne({ phone_number: phone_number.trim() });
+        let visa_status = visa && visa.status ? visa.status : 'unknown';
+        
+        if (user) {
+            user.full_name = full_name.trim();
+            if (age) user.age = age;
+            if (language) user.language = language;
+            if (ethnicity) user.ethnicity = ethnicity;
+            if (hotel_id) user.hotel_id = hotel_id;
+            if (hotel_name) user.hotel_name = hotel_name;
+            if (room_id) user.room_id = room_id;
+            if (room_number) user.room_number = room_number;
+            if (bus_id) user.bus_id = bus_id;
+            if (bus_info) user.bus_info = bus_info;
+            user.visa_status = visa_status;
+            await user.save();
+        } else {
+            const bcrypt = require('bcryptjs');
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(phone_number.trim(), salt);
+
+            user = new User({
+                full_name: full_name.trim(),
+                phone_number: phone_number.trim(),
+                password: hashedPassword,
+                user_type: 'pilgrim',
+                age, language, ethnicity,
+                hotel_id, hotel_name, room_id, room_number, bus_id, bus_info,
+                visa_status,
+                email_verified: false
+            });
+            await user.save();
+        }
+
+        await Group.findByIdAndUpdate(group_id, {
+            $addToSet: { pilgrim_ids: user._id }
+        });
+
+        sendSuccess(res, 200, 'Pilgrim provisioned successfully', {
+            pilgrim: {
+                _id: user._id,
+                full_name: user.full_name,
+                phone_number: user.phone_number,
+                hotel_name: user.hotel_name,
+                room_number: user.room_number,
+                bus_info: user.bus_info
+            }
+        });
+    } catch (error) {
+        const { sendServerError } = require('../utils/response_helpers');
+        sendServerError(res, null, 'Provision Pilgrim error', error);
+    }
+};
+
+exports.provision_pilgrims_bulk = async (req, res) => {
+    try {
+        const { group_id } = req.params;
+        const { pilgrims } = req.body;
+        const Group = require('../models/group_model');
+        const User = require('../models/user_model');
+        const bcrypt = require('bcryptjs');
+        const salt = await bcrypt.genSalt(10);
+        let addedCount = 0;
+        let errors = [];
+
+        for (let p of pilgrims) {
+            try {
+                let user = await User.findOne({ phone_number: p.phone_number.trim() });
+                let visa_status = p.visa && p.visa.status ? p.visa.status : 'unknown';
+                if (user) {
+                    user.full_name = p.full_name.trim();
+                    if (p.hotel_name) user.hotel_name = p.hotel_name;
+                    if (p.room_number) user.room_number = p.room_number;
+                    if (p.bus_info) user.bus_info = p.bus_info;
+                    await user.save();
+                } else {
+                    const hp = await bcrypt.hash(p.phone_number.trim(), salt);
+                    user = new User({
+                        full_name: p.full_name.trim(), phone_number: p.phone_number.trim(),
+                        password: hp, user_type: 'pilgrim',
+                        hotel_name: p.hotel_name, room_number: p.room_number, 
+                        bus_info: p.bus_info, visa_status
+                    });
+                    await user.save();
+                }
+                await Group.findByIdAndUpdate(group_id, { $addToSet: { pilgrim_ids: user._id } });
+                addedCount++;
+            } catch (err) {
+                errors.push({ phone_number: p.phone_number, error: err.message });
+            }
+        }
+        const { sendSuccess } = require('../utils/response_helpers');
+        sendSuccess(res, 200, 'Bulk provision complete', { added: addedCount, errors: errors.length > 0 ? errors : null });
+    } catch (error) {
+        const { sendServerError } = require('../utils/response_helpers');
+        sendServerError(res, null, 'Bulk Provision error', error);
+    }
+};
+
 exports.logout_user = async (req, res) => {
     try {
         const user_id = req.user.id;

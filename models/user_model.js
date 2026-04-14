@@ -74,11 +74,23 @@ const user_schema = new mongoose.Schema({
         default: 'en',
         enum: ['en', 'ar', 'ur', 'fr', 'id', 'tr']
     },
-    
+
+    // ========================================
+    // Accommodation & Transport (Pilgrim)
+    // ========================================
+    hotel_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Hotel' },
+    hotel_name: String,
+    room_id: mongoose.Schema.Types.ObjectId,
+    room_number: String,
+    bus_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
+    bus_info: String,
+    visa_status: { type: String, enum: ['unknown', 'pending', 'issued', 'rejected', 'expired'] },
+    ethnicity: String,
+
     // ========================================
     // Profile & Media
     // ========================================
-    profile_picture: { 
+    profile_picture: {
         type: String, 
         default: null 
     },

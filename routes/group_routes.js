@@ -28,6 +28,7 @@ router.post('/:group_id/add-pilgrim', moderatorAuth, validate(add_pilgrim_schema
 router.post('/:group_id/remove-pilgrim', moderatorAuth, validate(add_pilgrim_schema), group_controller.remove_pilgrim_from_group);
 // Available bands route removed
 router.get('/:group_id', moderatorAuth, group_controller.get_single_group);
+router.get('/:group_id/resource-options', moderatorAuth, group_controller.get_group_resource_options);
 router.put('/:group_id', moderatorAuth, group_controller.update_group_details);
 router.delete('/:group_id', moderatorAuth, group_controller.delete_group);
 router.get('/:group_id/qr', moderatorAuth, group_controller.generate_group_qr);

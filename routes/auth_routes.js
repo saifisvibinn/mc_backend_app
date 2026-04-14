@@ -54,6 +54,8 @@ router.post('/request-moderator', validate(request_moderator_schema), profile_ct
 const modAuth = authorize('moderator', 'admin');
 
 router.post('/register-pilgrim', modAuth, validate(register_pilgrim_schema), auth_ctrl.register_pilgrim);
+router.post('/groups/:group_id/provision-pilgrim', modAuth, auth_ctrl.provision_pilgrim);
+router.post('/groups/:group_id/provision-pilgrims-bulk', modAuth, auth_ctrl.provision_pilgrims_bulk);
 router.get('/search-pilgrims', modAuth, searchLimiter, auth_ctrl.search_pilgrims);
 router.get('/pilgrims/:pilgrim_id', modAuth, auth_ctrl.get_pilgrim_by_id);
 

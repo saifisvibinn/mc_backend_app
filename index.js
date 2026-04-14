@@ -13,6 +13,10 @@ const { disconnectDB } = require('./config/db');
 const { http_logger, logger } = require('./config/logger');
 const { initializeSockets } = require('./sockets/socket_manager');
 
+// Models (ensure they are registered with Mongoose)
+require('./models/hotel_model');
+require('./models/bus_model');
+
 // Routes
 const auth_routes = require('./routes/auth_routes');
 const group_routes = require('./routes/group_routes');

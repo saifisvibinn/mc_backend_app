@@ -104,9 +104,20 @@ function scheduleNext(reminder) {
     if (delayMs < -OVERDUE_GRACE_MS) {
         // Fire is more than 10 min overdue — skip it, advance counter, try again
         logger.warn(`[ReminderScheduler] Reminder ${key} fire #${fireCount + 1} is overdue by ${Math.round(-delayMs / 60000)} min — skipping`);
+        
+        const newFireCount = fireCount + 1;
+        const isLast = newFireCount >= totalFires;
+
+        // Advance fires_sent in DB to persist skipped counts
+        Reminder.findByIdAndUpdate(key, { 
+            fires_sent: newFireCount,
+            status: isLast ? 'completed' : 'active'
+        }).catch(() => {});
+        
         // Advance fires_sent in-memory to skip, then re-compute
         const updated = Object.assign({}, reminder.toObject ? reminder.toObject() : reminder, {
-            fires_sent: fireCount + 1
+            fires_sent: newFireCount,
+            status: isLast ? 'completed' : 'active'
         });
         scheduleNext(updated);
         return;

@@ -14,6 +14,8 @@ exports.get_single_group = async (req, res) => {
 
         const group = await Group.findById(group_id)
             .populate('moderator_ids', 'full_name email')
+            .populate('assigned_hotel_ids', 'name city rooms')
+            .populate('assigned_bus_ids', 'bus_number destination departure_time driver_name')
             .lean(); // Use lean for easier object manipulation
 
         if (!group) {
@@ -60,6 +62,39 @@ exports.get_single_group = async (req, res) => {
 
     } catch (error) {
         sendServerError(res, logger, 'Get single group error', error);
+    }
+};
+
+// Get resource options (assigned hotels/buses) for a group
+exports.get_group_resource_options = async (req, res) => {
+    try {
+        const { group_id } = req.params;
+
+        const group = await Group.findById(group_id)
+            .populate('moderator_ids', 'full_name email')
+            .populate('assigned_hotel_ids', 'name city rooms')
+            .populate('assigned_bus_ids', 'bus_number destination departure_time driver_name')
+            .lean();
+
+        if (!group) {
+            return sendError(res, 404, 'Group not found');
+        }
+
+        const is_admin = req.user.role === 'admin';
+        const is_group_moderator = (group.moderator_ids || []).some(
+            mod => mod._id.toString() === req.user.id,
+        );
+
+        if (!is_admin && !is_group_moderator) {
+            return sendError(res, 403, 'Not authorized to view this group');
+        }
+
+        sendSuccess(res, 200, null, {
+            hotels: group.assigned_hotel_ids || [],
+            buses: group.assigned_bus_ids || [],
+        });
+    } catch (error) {
+        sendServerError(res, logger, 'Get group resource options error', error);
     }
 };
 
